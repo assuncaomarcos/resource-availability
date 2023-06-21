@@ -4,7 +4,6 @@
 import unittest
 
 from availability import DiscreteSet, ContinuousSet, DiscreteRange, ContinuousRange, DiscreteProfile
-# import math
 
 
 class TestResourceSets(unittest.TestCase):
@@ -36,7 +35,20 @@ class TestDiscreteProfile(unittest.TestCase):
 
     def test_find_start_time(self):
         entry = self.pr.find_start_time(quantity=5, ready_time=0, duration=10)
-        print(entry)
+        # print(entry)
+
+    def test_allocate_slot(self):
+        slot = DiscreteSet([DiscreteRange(2, 7)])
+        slot2 = DiscreteSet([DiscreteRange(0, 2)])
+        self.pr.allocate_slot(resources=slot, start_time=5, end_time=10)
+        self.pr.allocate_slot(resources=slot2, start_time=0, end_time=3)
+        entry = self.pr.find_start_time(quantity=10, ready_time=0, duration=10)
+        self.assertEqual(entry.time, 10)
+        entry = self.pr.find_start_time(quantity=1, ready_time=0, duration=10)
+
+    def test_time_slots(self):
+        self.pr.time_slots(start_time=0, end_time=20, min_duration=5)
+
 
 if __name__ == '__main__':
     unittest.main()
