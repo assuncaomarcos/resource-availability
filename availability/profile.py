@@ -170,6 +170,8 @@ class ABCProfile(ABC, Generic[K, C]):
             while self._comp.value_gt(slot_res.quantity, 0):
                 pass
 
+
+
         # TODO: Complete this method
         return slots
 
