@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Tuple, Hashable, List
 from dataclasses import dataclass
 from .sets import DiscreteSet, ContinuousSet, DiscreteRange, ContinuousRange
-from .util import ABCComparator, IntegerComparator
+from .util import ABCComparator, IntFloatComparator
 from operator import attrgetter
 import copy
 
@@ -14,18 +14,14 @@ T = TypeVar('T', DiscreteRange, ContinuousRange)
 C = TypeVar('C', DiscreteSet, ContinuousSet, None)
 K = TypeVar('K', int, float)
 
-COMPARATORS = {
-    int: IntegerComparator
-}
 
-
-@dataclass
+@dataclass(slots=True)
 class TimeSlot(Generic[T, C]):
     period: T
     resources: C
 
 
-@dataclass
+@dataclass(slots=True)
 class ProfileEntry(Generic[K, C], Hashable):
     time: K
     resources: C
@@ -41,34 +37,57 @@ class ProfileEntry(Generic[K, C], Hashable):
     def copy(self, time: K = None):
         # if time provided, return copy with new time
         time_used = self.time if time is None else time
-        return ProfileEntry(time=time_used, resources=copy.copy(self.resources))
+        return ProfileEntry(time=time_used,
+                            resources=copy.copy(self.resources))
 
     def __copy__(self):
-        return ProfileEntry(time=self.time, resources=copy.copy(self.resources))
+        return ProfileEntry(time=self.time,
+                            resources=copy.copy(self.resources))
+
+
+def key_by_time():
+    return attrgetter('time')
 
 
 class ABCProfile(ABC, Generic[K, C]):
-    _avail: SortedKeyList[ProfileEntry[K, C]]
-    _max_capacity: K
-    _comp: ABCComparator[K]
 
     @abstractmethod
     def __init__(self, **kwargs):
-        self._max_capacity = kwargs.get('max_capacity', 0)
+        self._max_capacity: K = kwargs.get('max_capacity', 0)
         if 'comparator' not in kwargs:
-            raise ValueError("Comparator required to compare times and quantities of resources")
+            raise ValueError("Comparator needed to compare time and quantities")
 
-        self._comp = kwargs.get('comparator', None)
-        self._avail = SortedKeyList(key=attrgetter('time'))
+        # To compare times and quantities (they may be floats)
+        self._comp: ABCComparator[K] = kwargs.get('comparator', None)
+        self._avail: SortedKeyList[ProfileEntry[K, C]] = SortedKeyList(key=key_by_time())
+        # Create the start entry at time 0
         self._avail.add(self.make_entry(time=0, lower=0, upper=self._max_capacity))
 
     def _find_le(self, value: K) -> Tuple[int, ProfileEntry]:
         index: int = self._avail.bisect_right(ProfileEntry.make(value)) - 1
         return index, None if index < 0 else self._avail[index]
 
-    @classmethod
+    def _clone_availability(self, start_time: K, end_time: K) -> SortedKeyList[ProfileEntry]:
+        idx, _ = self._find_le(start_time)
+        cloned: SortedKeyList[ProfileEntry] = SortedKeyList(key=key_by_time())
+
+        while idx < len(self._avail):
+            entry: ProfileEntry = self._avail[idx]
+            if self._comp.value_gt(entry.time, end_time):
+                break
+            cloned.add(copy.copy(entry))
+            idx += 1
+
+        return cloned
+
+    @staticmethod
     @abstractmethod
-    def make_entry(cls, time: K, lower: K, upper: K) -> ProfileEntry[K, C]:
+    def make_entry(time: K, lower: K, upper: K) -> ProfileEntry[K, C]:
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def make_slot(start_time: K, end_time: K, resources: C) -> TimeSlot[T, C]:
         raise NotImplementedError
 
     @property
@@ -80,9 +99,7 @@ class ABCProfile(ABC, Generic[K, C]):
         if index > 0:
             self._avail = self._avail[index:]
 
-    def check_availability(self, quantity: K,
-                           start_time: K,
-                           duration: K) -> ProfileEntry[K, C]:
+    def check_availability(self, quantity: K, start_time: K, duration: K) -> TimeSlot:
         index, entry = self._find_le(start_time)
         end_time: K = start_time + duration
         resources: C = entry.resources.copy()
@@ -94,11 +111,12 @@ class ABCProfile(ABC, Generic[K, C]):
                 resources = None
                 break
 
-        return ProfileEntry(time=start_time, resources=resources)
+        return TimeSlot(
+            period=DiscreteRange(start_time, start_time+duration),
+            resources=resources
+        )
 
-    def find_start_time(self, quantity: K,
-                        ready_time: K,
-                        duration: K) -> ProfileEntry[K, C]:
+    def find_start_time(self, quantity: K, ready_time: K, duration: K) -> TimeSlot | None:
         index, entry = self._find_le(ready_time)
         sub_list = self._avail[index:]
 
@@ -119,9 +137,12 @@ class ABCProfile(ABC, Generic[K, C]):
 
             in_quantity = intersect.quantity
             if self._comp.value_ge(in_quantity, quantity):
-                return ProfileEntry(time=pos_start, resources=intersect)
+                return TimeSlot(
+                    period=DiscreteRange(pos_start, pos_start + duration),
+                    resources=intersect
+                )
 
-        return ProfileEntry(time=ready_time, resources=None)
+        return None
 
     def allocate_slot(self, resources: C, start_time: K, end_time: K):
         index, start_entry = self._find_le(start_time)
@@ -151,33 +172,49 @@ class ABCProfile(ABC, Generic[K, C]):
             self._avail.add(last_checked.copy(time=end_time))
             last_checked.resources -= resources
 
-    def time_slots(self, start_time: K, end_time: K,
-                   min_duration: K, min_quantity: K = 1) -> List[TimeSlot]:
-        slots: List = []
-        start_idx, _ = self._find_le(start_time)
-        end_idx, _ = self._find_le(end_time)
-        sub_list = self._avail[start_idx: end_idx]
+    def time_slots(self, start_time: K, end_time: K) -> List[TimeSlot]:
+        slots: List[TimeSlot] = []
+        profile: SortedKeyList[ProfileEntry] = self._clone_availability(start_time, end_time)
 
-        for start_idx, start_ent in enumerate(sub_list):
-            if self._comp.value_eq(start_ent.resources.quantity, 0):
+        for idx, entry in enumerate(profile):
+            if self._comp.value_eq(entry.resources.quantity, 0):
                 continue
 
-            slot_res = start_ent.resources.copy()
-            start_time = start_ent.time
-            curr_idx = start_idx
-            end_slot: K = end_time
+            slot_start = entry.time
+            slot_start_idx = slot_end_idx = idx
 
-            while self._comp.value_gt(slot_res.quantity, 0):
-                pass
+            # check all possible time slots starting at slot_start
+            while self._comp.value_gt(entry.resources.quantity, 0):
+                slot_res: C = copy.copy(entry.resources)
+                intersection: C = slot_res
+                slot_end = end_time
 
+                for idx_in in range(idx + 1, len(profile)):
+                    follow_entry = profile[idx_in]
+                    intersection &= follow_entry.resources
 
+                    if self._comp.value_eq(intersection.quantity, 0):
+                        slot_end = follow_entry.time
+                        break
 
-        # TODO: Complete this method
+                    slot_res = intersection
+                    slot_end_idx = idx_in
+
+                slot = self.make_slot(slot_start, slot_end, slot_res)
+                slots.append(slot)
+
+                for idx_in in range(slot_start_idx, slot_end_idx + 1):
+                    entry = profile[idx_in]
+                    entry.resources -= slot_res
+
         return slots
 
     def scheduling_options(self, start_time: K, end_time: K,
                            min_duration: K, min_quantity: K = 1) -> List[TimeSlot]:
-        pass
+        slots: List[TimeSlot] = []
+        index, entry = self._find_le(start_time)
+
+        return slots
 
     def __repr__(self):
         return f"{self.__class__.__name__}(max_capacity={self.max_capacity}, " \
@@ -187,9 +224,14 @@ class ABCProfile(ABC, Generic[K, C]):
 class DiscreteProfile(ABCProfile[int, DiscreteSet]):
 
     def __init__(self, max_capacity: int):
-        super().__init__(max_capacity=max_capacity, comparator=IntegerComparator)
+        super().__init__(max_capacity=max_capacity, comparator=IntFloatComparator)
 
-    @classmethod
-    def make_entry(cls, time: int, lower: int,
+    @staticmethod
+    def make_entry(time: int, lower: int,
                    upper: int) -> ProfileEntry[int, DiscreteSet]:
         return ProfileEntry(time, DiscreteSet([DiscreteRange(lower, upper)]))
+
+    @staticmethod
+    def make_slot(start_time: int, end_time: int,
+                  resources: DiscreteSet) -> TimeSlot[DiscreteRange, DiscreteSet]:
+        return TimeSlot(period=DiscreteRange(start_time, end_time), resources=resources)

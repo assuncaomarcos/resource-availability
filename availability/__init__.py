@@ -4,12 +4,13 @@
 __version__ = '0.0.1'
 
 from .sets import ContinuousSet, DiscreteSet, DiscreteRange, ContinuousRange
-from .profile import DiscreteProfile
+from .profile import DiscreteProfile, TimeSlot
 
 __all__ = [
     'ContinuousSet',
     'DiscreteSet',
     'DiscreteRange',
     'ContinuousRange',
-    'DiscreteProfile'
+    'DiscreteProfile',
+    'TimeSlot'
 ]
