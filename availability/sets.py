@@ -3,6 +3,13 @@
 
 from spans import intrangeset, floatrangeset, intrange, floatrange
 
+__all__ = [
+    "DiscreteRange",
+    "ContinuousRange",
+    "DiscreteSet",
+    "ContinuousSet"
+]
+
 
 class DiscreteRange(intrange):
     """

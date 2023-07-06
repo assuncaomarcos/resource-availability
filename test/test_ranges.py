@@ -49,7 +49,11 @@ class TestDiscreteProfile(unittest.TestCase):
     def test_time_slots(self):
         self._allocate()
         slots = self.pr.time_slots(start_time=0, end_time=20)
-        # print(slots)
+
+    def test_scheduling_options(self):
+        self._allocate()
+        slots = self.pr.scheduling_options(start_time=0, end_time=20, min_duration=1)
+
 
     def _allocate(self):
         slot = DiscreteSet([DiscreteRange(2, 7)])
