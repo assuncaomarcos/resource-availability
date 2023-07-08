@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+This module contains the data structure used to track the
+allocation of computing resources to tasks
+"""
 
-from sortedcontainers import SortedKeyList
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, Tuple, Hashable, List
+from typing import Generic, TypeVar, Tuple, Hashable, List, Callable, AnyStr, Any
 from dataclasses import dataclass
-from .sets import DiscreteSet, ContinuousSet, DiscreteRange, ContinuousRange
-from .util import ABCComparator, IntFloatComparator
 from operator import attrgetter
 import copy
+from sortedcontainers import SortedKeyList
+from .sets import DiscreteSet, ContinuousSet, DiscreteRange, ContinuousRange
+from .util import ABCComparator, IntFloatComparator
+
 
 T = TypeVar("T", DiscreteRange, ContinuousRange)
 C = TypeVar("C", DiscreteSet, ContinuousSet, None)
@@ -17,6 +23,12 @@ K = TypeVar("K", int, float)
 
 @dataclass(slots=True)
 class TimeSlot(Generic[T, C]):
+    """
+    A time slot.
+
+    This class represents a time slot over which resources are free or in use
+    """
+
     period: T
     """ The time period """
     resources: C
@@ -25,6 +37,14 @@ class TimeSlot(Generic[T, C]):
 
 @dataclass(slots=True)
 class ProfileEntry(Generic[K, C], Hashable):
+    """
+    A profile entry.
+
+    An entry in the availability profile contains the
+    time of a change in resources and the sets of resources
+    available at the time .
+    """
+
     time: K
     """ The time of the entry """
     resources: C
@@ -36,20 +56,34 @@ class ProfileEntry(Generic[K, C], Hashable):
         return self.time.__hash__()
 
     @classmethod
-    def make(cls, time: K, resources: C = None):
+    def make(cls, time: K, resources: C = None) -> ProfileEntry[K, C]:
+        """
+        Creates an entry with the given time and resources.
+
+        Args:
+            time: the time of the entry
+            resources: the sets of resources available after the time.
+
+        Returns:
+            A profile entry.
+        """
         return ProfileEntry(time=time, resources=resources)
 
-    def copy(self, time: K = None):
-        # if time provided, return copy with new time
+    def copy(self, time: K = None) -> ProfileEntry[K, C]:
+        """
+        Makes a copy of this entry, changing the time to the time provided.
+
+        Args:
+            time: the time to use in the copy
+
+        Returns:
+            A copy of this entry.
+        """
         time_used = self.time if time is None else time
         return ProfileEntry(time=time_used, resources=copy.copy(self.resources))
 
     def __copy__(self):
         return ProfileEntry(time=self.time, resources=copy.copy(self.resources))
-
-
-def key_by_time():
-    return attrgetter("time")
 
 
 class ABCProfile(ABC, Generic[K, C, T]):
@@ -74,11 +108,40 @@ class ABCProfile(ABC, Generic[K, C, T]):
             raise ValueError("Comparator needed to compare time and quantities")
 
         self._comp = kwargs.get("comparator", None)
-        self._avail = SortedKeyList(key=key_by_time())
-        # Create the start entry at time 0, lower resource 0, upper resource as max capacity
-        self._avail.add(
-            self.make_entry(time=0, lower_res=0, upper_res=self._max_capacity)
-        )
+        self._avail = SortedKeyList(key=self.key_by_time())
+        self.create_first_entry()
+
+    @staticmethod
+    def key_by_time() -> Callable[[AnyStr], Any]:
+        """
+        Returns a function used for sorting the availability profile.
+
+        Returns:
+            The function to use.
+        """
+        return attrgetter("time")
+
+    @abstractmethod
+    def create_first_entry(self) -> None:
+        """
+        Creates the first entry in the profile.
+
+        Returns:
+            None
+        """
+        raise NotImplementedError
+
+    def add_entry(self, entry: ProfileEntry[K, C]) -> None:
+        """
+        Adds an entry to the availability data structure.
+
+        Args:
+            entry: the entry to be added.
+
+        Returns:
+            None
+        """
+        self._avail.add(entry)
 
     def _find_le(self, value: K) -> Tuple[int, ProfileEntry]:
         index: int = self._avail.bisect_right(ProfileEntry.make(value)) - 1
@@ -88,7 +151,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         self, start_time: K, end_time: K
     ) -> SortedKeyList[ProfileEntry]:
         idx, _ = self._find_le(start_time)
-        cloned: SortedKeyList[ProfileEntry] = SortedKeyList(key=key_by_time())
+        cloned: SortedKeyList[ProfileEntry] = SortedKeyList(key=self.key_by_time())
 
         while idx < len(self._avail):
             entry: ProfileEntry = self._avail[idx]
@@ -101,20 +164,21 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
     @staticmethod
     @abstractmethod
-    def make_entry(time: K, lower_res: K, upper_res: K) -> ProfileEntry[K, C]:
-        raise NotImplementedError
-
-    @staticmethod
-    @abstractmethod
     def make_slot(start_time: K, end_time: K, resources: C) -> TimeSlot[T, C]:
         raise NotImplementedError
 
     @property
     def max_capacity(self) -> K:
+        """
+        Obtains the maximum resource capacity of this profile.
+
+        Returns:
+            The maximum capacity
+        """
         return self._max_capacity
 
     def remove_past_entries(self, earliest_time: K):
-        index, the_set = self._find_le(earliest_time)
+        index, _ = self._find_le(earliest_time)
         if index > 0:
             self._avail = self._avail[index:]
 
@@ -124,10 +188,10 @@ class ABCProfile(ABC, Generic[K, C, T]):
         index, entry = self._find_le(start_time)
         end_time: K = start_time + duration
         resources: C = entry.resources.copy()
-        for e in self._avail[index + 1 :]:
-            if e.time >= end_time:
+        for entry in self._avail[index + 1 :]:
+            if entry.time >= end_time:
                 break
-            resources &= e.resources
+            resources &= entry.resources
             if resources.quantity < quantity:
                 resources = None
                 break
@@ -139,7 +203,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
     def find_start_time(
         self, quantity: K, ready_time: K, duration: K
     ) -> TimeSlot | None:
-        index, entry = self._find_le(ready_time)
+        index, _ = self._find_le(ready_time)
         sub_list = self._avail[index:]
 
         for idx_out, anchor in enumerate(sub_list):
@@ -151,11 +215,11 @@ class ABCProfile(ABC, Generic[K, C, T]):
             while idx_in < len(sub_list) and self._comp.value_ge(
                 intersect.quantity, quantity
             ):
-                in_entry = sub_list[idx_in]
-                if self._comp.value_ge(in_entry.time, pos_end):
+                entry = sub_list[idx_in]
+                if self._comp.value_ge(entry.time, pos_end):
                     break
 
-                intersect &= in_entry.resources
+                intersect &= entry.resources
                 idx_in += 1
 
             in_quantity = intersect.quantity
@@ -243,7 +307,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         for idx_out, entry in enumerate(self._avail[index:]):
             if self._comp.value_ge(entry.time, end_time):
                 break
-            elif self._comp.value_eq(entry.resources.quantity, 0):
+            if self._comp.value_eq(entry.resources.quantity, 0):
                 continue
 
             slot_ranges = copy.copy(entry.resources)
@@ -295,14 +359,22 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
 
 class DiscreteProfile(ABCProfile[int, DiscreteSet, DiscreteRange]):
+    """Availability profile that handles discrete time and resources"""
+
     def __init__(self, max_capacity: int):
         super().__init__(max_capacity=max_capacity, comparator=IntFloatComparator)
 
-    @staticmethod
-    def make_entry(
-        time: int, lower_res: int, upper_res: int
-    ) -> ProfileEntry[int, DiscreteSet]:
-        return ProfileEntry(time, DiscreteSet([DiscreteRange(lower_res, upper_res)]))
+    def create_first_entry(self) -> None:
+        """
+        Creates the first entry at time 0
+
+        Returns:
+            None
+        """
+        first_entry = ProfileEntry(
+            0, DiscreteSet([DiscreteRange(0, self.max_capacity)])
+        )
+        self.add_entry(first_entry)
 
     @staticmethod
     def make_slot(
