@@ -54,7 +54,6 @@ class TestDiscreteProfile(unittest.TestCase):
         self._allocate()
         slots = self.pr.scheduling_options(start_time=0, end_time=20, min_duration=1)
 
-
     def _allocate(self):
         slot = DiscreteSet([DiscreteRange(2, 7)])
         slot2 = DiscreteSet([DiscreteRange(0, 2)])
@@ -62,5 +61,5 @@ class TestDiscreteProfile(unittest.TestCase):
         self.pr.allocate_slot(resources=slot2, start_time=0, end_time=3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
