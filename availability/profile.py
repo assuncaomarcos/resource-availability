@@ -143,14 +143,61 @@ class ABCProfile(ABC, Generic[K, C, T]):
         """
         self._avail.add(entry)
 
-    def _find_le(self, value: K) -> Tuple[int, ProfileEntry]:
+    @property
+    def max_capacity(self) -> K:
+        """
+        Obtains the maximum resource capacity of this profile.
+
+        Returns:
+            The maximum capacity
+        """
+        return self._max_capacity
+
+    @staticmethod
+    @abstractmethod
+    def make_slot(start_time: K, end_time: K, resources: C) -> TimeSlot[T, C]:
+        """
+        Creates a time slot whose types are compliant with this profile.
+
+        Args:
+            start_time: the start time for the slot.
+            end_time: the end time
+            resources: the resources available during the slot.
+
+        Returns:
+            A time slot.
+        """
+        raise NotImplementedError
+
+    def _find_place_before(self, value: K) -> Tuple[int, ProfileEntry]:
+        """
+        Returns the index and entry located before the position where
+        the provided value would be placed in the data structure.
+
+        Args:
+            value: the value for which the position before it is to be found
+
+        Returns:
+            the index and value found at the searched position
+        """
         index: int = self._avail.bisect_right(ProfileEntry.make(value)) - 1
         return index, None if index < 0 else self._avail[index]
 
     def _clone_availability(
         self, start_time: K, end_time: K
     ) -> SortedKeyList[ProfileEntry]:
-        idx, _ = self._find_le(start_time)
+        """
+        Returns a shallow copy of the availability structure
+        between the provided time interval.
+
+        Args:
+            start_time: the start time to consider
+            end_time: the end time
+
+        Returns:
+            A shallow copy of the structure with the availability information
+        """
+        idx, _ = self._find_place_before(start_time)
         cloned: SortedKeyList[ProfileEntry] = SortedKeyList(key=self.key_by_time())
 
         while idx < len(self._avail):
@@ -162,30 +209,39 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         return cloned
 
-    @staticmethod
-    @abstractmethod
-    def make_slot(start_time: K, end_time: K, resources: C) -> TimeSlot[T, C]:
-        raise NotImplementedError
-
-    @property
-    def max_capacity(self) -> K:
+    def remove_past_entries(self, earliest_time: K) -> None:
         """
-        Obtains the maximum resource capacity of this profile.
+        Removes entries in the availability structure
+        whose time is before the provided time.
+
+        Args:
+            earliest_time: the earliest time to consider.
 
         Returns:
-            The maximum capacity
+            None
         """
-        return self._max_capacity
-
-    def remove_past_entries(self, earliest_time: K):
-        index, _ = self._find_le(earliest_time)
+        index, _ = self._find_place_before(earliest_time)
         if index > 0:
             self._avail = self._avail[index:]
 
     def check_availability(
         self, quantity: K, start_time: K, duration: K
     ) -> TimeSlot[T, C]:
-        index, entry = self._find_le(start_time)
+        """
+        Checks the resource availability.
+
+        Checks whether the quantity of required resources is
+        available from the start time and for the duration expected.
+
+        Args:
+            quantity: the amount of resources required
+            start_time: the start time
+            duration: the duration over which the resources are needed.
+
+        Returns:
+            A time slot with the searched interval and resource sets available.
+        """
+        index, entry = self._find_place_before(start_time)
         end_time: K = start_time + duration
         resources: C = entry.resources.copy()
         for entry in self._avail[index + 1 :]:
@@ -203,7 +259,21 @@ class ABCProfile(ABC, Generic[K, C, T]):
     def find_start_time(
         self, quantity: K, ready_time: K, duration: K
     ) -> TimeSlot | None:
-        index, _ = self._find_le(ready_time)
+        """
+        Finds a start time.
+
+        Find the possible start time for a given job or task with the provided duration.
+
+        Args:
+            quantity: the amount of resources required
+            ready_time: the earliest time at which the job/task is ready
+            duration: the job/task duration
+
+        Returns:
+            A time slot with the resources available or
+            None if it is not possible to meet the task requirements
+        """
+        index, _ = self._find_place_before(ready_time)
         sub_list = self._avail[index:]
 
         for idx_out, anchor in enumerate(sub_list):
@@ -231,8 +301,22 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         return None
 
-    def allocate_slot(self, resources: C, start_time: K, end_time: K) -> None:
-        index, start_entry = self._find_le(start_time)
+    def allocate_resources(self, resources: C, start_time: K, end_time: K) -> None:
+        """
+        Allocates resources.
+
+        Allocates the given resource sets during the start and end times.
+        Updates the availability information during the period.
+
+        Args:
+            resources: the sets of resources to allocate
+            start_time: the start time for using the resources
+            end_time: the time the resources should be released
+
+        Returns:
+            None
+        """
+        index, start_entry = self._find_place_before(start_time)
         last_checked: ProfileEntry[K, C] = start_entry.copy(time=start_time)
 
         # If the time of anchor is equal to the finish time, then a new
@@ -259,7 +343,34 @@ class ABCProfile(ABC, Generic[K, C, T]):
             self._avail.add(last_checked.copy(time=end_time))
             last_checked.resources -= resources
 
-    def time_slots(self, start_time: K, end_time: K) -> List[TimeSlot]:
+    def free_time_slots(self, start_time: K, end_time: K) -> List[TimeSlot]:
+        """
+        Gets the free time slots.
+
+        Returns the free time slots contained in this availability profile
+        within a specified time period.
+        NOTE: The time slots returned by this method do not overlap.
+        That is, they are not the scheduling options for a task. They are
+        the windows of availability. Also, they are sorted by start time.
+        For example::
+
+          |-------------------------------------
+        C |    Job 3     |     Time Slot 3     |
+        P |-------------------------------------
+        U |    Job 2  |      Time Slot 2       |
+        s |-------------------------------------
+          |  Job 1 |  Time Slot 1  |   Job 4   |
+          +-------------------------------------
+        Start time         Time          Finish time
+
+        Args:
+            start_time: the start time to consider
+            end_time: the end time
+
+        Returns:
+            A list of free time slots.
+        """
+
         slots: List[TimeSlot] = []
         profile: SortedKeyList[ProfileEntry] = self._clone_availability(
             start_time, end_time
@@ -289,8 +400,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
                     slot_res = intersection
                     slot_end_idx = idx_in
 
-                slot = self.make_slot(slot_start, slot_end, slot_res)
-                slots.append(slot)
+                slots.append(self.make_slot(slot_start, slot_end, slot_res))
 
                 for idx_in in range(slot_start_idx, slot_end_idx + 1):
                     entry = profile[idx_in]
@@ -301,10 +411,31 @@ class ABCProfile(ABC, Generic[K, C, T]):
     def scheduling_options(
         self, start_time: K, end_time: K, min_duration: K, min_quantity: K = 1
     ) -> List[TimeSlot]:
-        slots: List[TimeSlot[T, C]] = []
-        index, _ = self._find_le(start_time)
+        """
+        Gets the scheduling options.
 
-        for idx_out, entry in enumerate(self._avail[index:]):
+        Returns the scheduling options of this availability profile within the
+        specified period of time.
+        NOTE: The time slots returned by this method OVERLAP because they are
+        the scheduling options for jobs with the provided characteristics.
+
+        Args:
+            start_time: the start time of the period.
+            end_time: the finish time of the period.
+            min_duration: the minimum duration of the free time slots. Free time
+                    slots whose time frames are smaller than min_duration will be ignored.
+                    If min_duration is 1, then all scheduling options will be returned.
+            min_quantity: the minimum number of resources for the time slots. Slots whose
+                    quantities are smaller than min_quantity will be ignored.
+
+        Returns:
+            A list with the scheduling options.
+        """
+
+        slots: List[TimeSlot[T, C]] = []
+        index, _ = self._find_place_before(start_time)
+
+        for entry in self._avail[index:]:
             if self._comp.value_ge(entry.time, end_time):
                 break
             if self._comp.value_eq(entry.resources.quantity, 0):
@@ -315,7 +446,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             while slot_ranges is not None and slot_ranges.quantity > 0:
                 start_quantity = slot_ranges.quantity
                 changed = False
-                for idx_in, next_entry in enumerate(self._avail[index + 1 :]):
+                for next_entry in self._avail[index + 1 :]:
                     if changed or self._comp.value_ge(next_entry.time, end_time):
                         break
                     intersection = slot_ranges & next_entry.resources
