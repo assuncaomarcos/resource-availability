@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Ranges and sets of resources that can
-be managed using the availability profile
+be managed using the availability profile.
 """
 
 from spans import intrangeset, floatrangeset, intrange, floatrange
@@ -12,6 +12,8 @@ __all__ = ["DiscreteRange", "ContinuousRange", "DiscreteSet", "ContinuousSet"]
 
 class DiscreteRange(intrange):
     """
+    A range of integers.
+
     Represents a range of discrete values (integers).
     This can be used to store node IDs of nodes in a cluster, for instance.
     """
@@ -21,6 +23,8 @@ class DiscreteRange(intrange):
 
 class ContinuousRange(floatrange):
     """
+    A range of floats.
+
     Represents a range of continuous values (floats).
     This can be used to store the amount of memory in use in a cluster node.
     """

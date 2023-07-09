@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" Utility classes and methods """
+""" Utility classes and functions """
 
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic
@@ -24,11 +24,11 @@ class ABCComparator(ABC, Generic[V]):
         Checks whether the first value is smaller than other
 
         Args:
-            first: the first value to compare against other
-            other: the other value
+            first: the first value to compare against the second value
+            other: the second value
 
         Returns:
-            True if the first value is smaller than the other
+            True if the first value is smaller than the second
         """
         raise NotImplementedError
 
@@ -39,11 +39,11 @@ class ABCComparator(ABC, Generic[V]):
         Checks whether the first value is smaller than or equal to the other
 
         Args:
-            first: the first value to compare against the other
-            other: the other value
+            first: the first value to compare against the second value
+            other: the second value
 
         Returns:
-            True if the first value is smaller than or equal to the other
+            True if the first value is smaller than or equal to the second
         """
         raise NotImplementedError
 
@@ -54,11 +54,11 @@ class ABCComparator(ABC, Generic[V]):
         Checks whether the first value is equal to the other
 
         Args:
-            first: the first value to compare against other
-            other: the other value
+            first: the first value to compare against the second value
+            other: the second value
 
         Returns:
-            True if the first value is equal to the other
+            True if the first value is equal to the second
         """
         raise NotImplementedError
 
@@ -69,11 +69,11 @@ class ABCComparator(ABC, Generic[V]):
         Checks whether the first value is greater than or equal to the other
 
         Args:
-            first: the first value to compare against other
-            other: the other value
+            first: the first value to compare against the second value
+            other: the second value
 
         Returns:
-            True if the first value is greater than or equal to the other
+            True if the first value is greater than or equal to the second
         """
         raise NotImplementedError
 
@@ -84,11 +84,11 @@ class ABCComparator(ABC, Generic[V]):
         Checks whether the first value is greater than the other
 
         Args:
-            first: the first value to compare against other
-            other: the other value
+            first: the first value to compare against the second value
+            other: the second value
 
         Returns:
-            True if the first value is greater than the other
+            True if the first value is greater than the second
         """
         raise NotImplementedError
 
@@ -99,11 +99,11 @@ class ABCComparator(ABC, Generic[V]):
         Checks whether the first value is different from the other
 
         Args:
-            first: the first value to compare against other
-            other: the other value
+            first: the first value to compare against the second value
+            other: the second value
 
         Returns:
-            True if the first value is different from the other
+            True if the first value is different from the second
         """
         raise NotImplementedError
 

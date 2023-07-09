@@ -16,6 +16,9 @@ from .sets import DiscreteSet, ContinuousSet, DiscreteRange, ContinuousRange
 from .util import ABCComparator, IntFloatComparator
 
 
+__all__ = ["TimeSlot", "ABCProfile", "DiscreteProfile", "ProfileEntry"]
+
+
 T = TypeVar("T", DiscreteRange, ContinuousRange)
 C = TypeVar("C", DiscreteSet, ContinuousSet, None)
 K = TypeVar("K", int, float)
