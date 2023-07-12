@@ -43,6 +43,28 @@ class ContinuousRange(floatrange):
     lower up to but not including upper.
     """
 
+    def __init__(self, lower=None, upper=None, lower_inc=None, upper_inc=None):
+        """
+        Creates a continuous ranges (floats).
+
+        This constructor just casts the bounds to floats to avoid
+        an error from `Spans` when providing integers.
+
+        Args:
+            lower: Lower end of range.
+            upper: Upper end of range.
+            lower_inc: ``True`` if lower end should be included. Default is ``True``
+            upper_inc: ``True`` if upper end should be included. Default is ``False``
+        Raises:
+            TypeError: If lower or upper bound is not of the correct type.
+            ValueError: If upper bound is lower than lower bound.
+        """
+        if lower is not None:
+            lower = float(lower)
+        if upper is not None:
+            upper = float(upper)
+        super().__init__(lower, upper, lower_inc, upper_inc)
+
     __slots__ = ()
 
 

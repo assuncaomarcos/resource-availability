@@ -10,7 +10,7 @@ from availability import (
     DiscreteSet,
     ContinuousSet,
     DiscreteProfile,
-    ContinuousProfile
+    ContinuousProfile,
 )
 
 
@@ -177,6 +177,41 @@ class TestContinuousProfile(unittest.TestCase):
         self.assertEqual(slot.period.lower, 5.0)
         self.assertEqual(slot.period.upper, 15.0)
         self.assertIn(ContinuousRange(7.0, 10.0), slot.resources)
+
+    def test_time_slots(self) -> None:
+        """Tests obtaining the free time slots in the pool"""
+        self._allocate()
+        slots = self.profile.free_time_slots(start_time=0.0, end_time=20.0)
+        self.assertEqual(len(slots), 4)
+        self.assertIn(ContinuousRange(0.0, 20.0), slots[0].period)
+        self.assertIn(ContinuousRange(7.0, 10.0), slots[0].resources)
+        self.assertIn(ContinuousRange(2.0, 7.0), slots[1].resources)
+        self.assertIn(ContinuousRange(0.0, 2.0), slots[2].resources)
+        self.assertIn(ContinuousRange(2.0, 7.0), slots[3].resources)
+        self.assertIn(ContinuousRange(10.0, 20.0), slots[3].period)
+
+    def test_allocate(self) -> None:
+        """Test multiple allocations"""
+        span = ContinuousSet([ContinuousRange(0, 8)])
+        self.profile.allocate_resources(resources=span, start_time=5, end_time=10)
+        slot = self.profile.check_availability(5, start_time=5, duration=5)
+        self.assertEqual(slot.resources, None)
+
+    def test_scheduling_options(self) -> None:
+        """Test obtaining the scheduling options"""
+        self._allocate()
+        slots = self.profile.scheduling_options(
+            start_time=0, end_time=20, min_duration=2
+        )
+        self.assertEqual(len(slots), 4)
+        self.assertIn(ContinuousRange(0, 5), slots[0].period)
+        self.assertIn(ContinuousRange(0, 20), slots[1].period)
+        self.assertIn(ContinuousRange(5, 20), slots[2].period)
+        self.assertIn(ContinuousRange(10, 20), slots[3].period)
+        self.assertIn(ContinuousRange(2, 10), slots[0].resources)
+        self.assertIn(ContinuousRange(7, 10), slots[1].resources)
+        self.assertIn(ContinuousRange(0, 2), slots[2].resources)
+        self.assertIn(ContinuousRange(0, 10), slots[3].resources)
 
 
 if __name__ == "__main__":
