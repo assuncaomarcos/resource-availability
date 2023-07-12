@@ -24,13 +24,14 @@ C = TypeVar("C", DiscreteSet, ContinuousSet, None)
 K = TypeVar("K", int, float)
 
 
-@dataclass(slots=True)
+@dataclass
 class TimeSlot(Generic[T, C]):
     """
     A time slot.
 
     This class represents a time slot over which resources are free or in use
     """
+    __slots__ = ['period', 'resources']
 
     period: T
     """ The time period """
@@ -38,7 +39,7 @@ class TimeSlot(Generic[T, C]):
     """ The resources available during the period """
 
 
-@dataclass(slots=True)
+@dataclass
 class ProfileEntry(Generic[K, C], Hashable):
     """
     A profile entry.
