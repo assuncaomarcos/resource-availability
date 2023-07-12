@@ -104,7 +104,6 @@ class ABCProfile(ABC, Generic[K, C, T]):
     _avail: SortedKeyList[ProfileEntry[K, C]]
     """ The data structure used to store the availability information """
 
-    @abstractmethod
     def __init__(self, **kwargs):
         self._max_capacity = kwargs.get("max_capacity", 0)
         if "comparator" not in kwargs:
@@ -247,7 +246,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         index, entry = self._find_place_before(start_time)
         end_time: K = start_time + duration
         resources: C = entry.resources.copy()
-        for entry in self._avail[index + 1 :]:
+        for entry in self._avail[index:]:
             if entry.time >= end_time:
                 break
             resources &= entry.resources
@@ -323,7 +322,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         last_checked: ProfileEntry[K, C] = start_entry.copy(time=start_time)
 
         # If the time of anchor is equal to the finish time, then a new
-        # anchor is not required. We increase the number of work units
+        # anchor is not required. We increase the number of tasks
         # that rely on that entry to mark its completion or start time.
         if self._comp.value_eq(start_entry.time, start_time):
             start_entry.num_units += 1
@@ -385,12 +384,14 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
             slot_start = entry.time
             slot_start_idx = slot_end_idx = idx
+            follow_entry: C
 
             # check all possible time slots starting at slot_start
             while self._comp.value_gt(entry.resources.quantity, 0):
-                slot_res: C = copy.copy(entry.resources)
+                slot_res: C = entry.resources
                 intersection: C = slot_res
                 slot_end = end_time
+                slot_end_idx = slot_start_idx
 
                 for idx_in in range(idx + 1, len(profile)):
                     follow_entry = profile[idx_in]
@@ -406,8 +407,8 @@ class ABCProfile(ABC, Generic[K, C, T]):
                 slots.append(self.make_slot(slot_start, slot_end, slot_res))
 
                 for idx_in in range(slot_start_idx, slot_end_idx + 1):
-                    entry = profile[idx_in]
-                    entry.resources -= slot_res
+                    follow_entry = profile[idx_in]
+                    follow_entry.resources -= slot_res
 
         return slots
 
@@ -438,22 +439,22 @@ class ABCProfile(ABC, Generic[K, C, T]):
         slots: List[TimeSlot[T, C]] = []
         index, _ = self._find_place_before(start_time)
 
-        for entry in self._avail[index:]:
+        for idx_in, entry in enumerate(self._avail[index:]):
             if self._comp.value_ge(entry.time, end_time):
                 break
             if self._comp.value_eq(entry.resources.quantity, 0):
                 continue
 
-            slot_ranges = copy.copy(entry.resources)
+            slot_res = copy.copy(entry.resources)
             slot_start = max(entry.time, start_time)
-            while slot_ranges is not None and slot_ranges.quantity > 0:
-                start_quantity = slot_ranges.quantity
+            while slot_res is not None and slot_res.quantity > 0:
+                start_quantity = slot_res.quantity
                 changed = False
-                for next_entry in self._avail[index + 1 :]:
+                for next_entry in self._avail[idx_in + 1 :]:
                     if changed or self._comp.value_ge(next_entry.time, end_time):
                         break
-                    intersection = slot_ranges & next_entry.resources
-                    if self._comp.value_eq(intersection.quantity, slot_ranges.quantity):
+                    intersection = slot_res & next_entry.resources
+                    if self._comp.value_eq(intersection.quantity, slot_res.quantity):
                         continue
 
                     # if there is a change in the quantity, so that less
@@ -462,27 +463,27 @@ class ABCProfile(ABC, Generic[K, C, T]):
                     slot_end = min(next_entry.time, end_time)
                     if self._comp.value_ge(
                         slot_end - slot_start, min_duration
-                    ) and self._comp.value_ge(slot_ranges.quantity, min_quantity):
+                    ) and self._comp.value_ge(slot_res.quantity, min_quantity):
                         slots.append(
                             TimeSlot(
                                 period=DiscreteRange(slot_start, slot_end),
-                                resources=copy.copy(slot_ranges),
+                                resources=copy.copy(slot_res),
                             )
                         )
                     changed = True
-                    slot_ranges = intersection
+                    slot_res = intersection
 
-                if self._comp.value_eq(slot_ranges.quantity, start_quantity):
+                if self._comp.value_eq(slot_res.quantity, start_quantity):
                     if self._comp.value_ge(
                         end_time - slot_start, min_duration
-                    ) and self._comp.value_ge(slot_ranges.quantity, min_quantity):
+                    ) and self._comp.value_ge(slot_res.quantity, min_quantity):
                         slots.append(
                             TimeSlot(
                                 period=DiscreteRange(slot_start, end_time),
-                                resources=copy.copy(slot_ranges),
+                                resources=copy.copy(slot_res),
                             )
                         )
-                        slot_ranges = None
+                    slot_res = None
         return slots
 
     def __repr__(self):

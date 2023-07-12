@@ -16,6 +16,16 @@ class DiscreteRange(intrange):
 
     Represents a range of discrete values (integers).
     This can be used to store node IDs of nodes in a cluster, for instance.
+
+    Note: the implementation uses the `spans` library, in which
+    by default all ranges include all elements from and including
+    lower up to but not including upper::
+
+        >>> span = DiscreteRange(1, 5)
+        >>> span.lower
+        1
+        >>> span.upper
+        4
     """
 
     __slots__ = ()
@@ -27,17 +37,21 @@ class ContinuousRange(floatrange):
 
     Represents a range of continuous values (floats).
     This can be used to store the amount of memory in use in a cluster node.
+
+    Note: the implementation uses the `spans` library, in which
+    by default all ranges include all elements from and including
+    lower up to but not including upper.
     """
 
     __slots__ = ()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
 
 class DiscreteSet(intrangeset):
     """Represents a set of discrete ranges.
-    (see :class:`availability.resources.DiscreteRange`).
+
+    Similar to ranges, range sets support union, difference, and intersection.
+    Contrary to Python’s built-in sets, the operations return a new
+    set and do not modify the range set in place since ranges are immutable.
     """
 
     __slots__ = ()
@@ -57,7 +71,10 @@ class DiscreteSet(intrangeset):
 class ContinuousSet(floatrangeset):
     """
     Represents a set of continuous ranges.
-    (see :class:`availability.resources.ContinuousRange`).
+
+    Similar to ranges, range sets support union, difference, and intersection.
+    Contrary to Python’s built-in sets, the operations return a new
+    set and do not modify the range set in place since ranges are immutable.
     """
 
     __slots__ = ()
@@ -66,6 +83,7 @@ class ContinuousSet(floatrangeset):
     def quantity(self) -> float:
         """
         Obtains the amount of resources in the set.
+
         Returns:
             The resource amount
         """
