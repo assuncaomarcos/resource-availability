@@ -15,8 +15,7 @@ from typing import (
     List,
     Callable,
     AnyStr,
-    Any,
-    get_args,
+    Any
 )
 from dataclasses import dataclass
 from operator import attrgetter
