@@ -7,7 +7,17 @@ allocation of computing resources to tasks
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, Tuple, Hashable, List, Callable, AnyStr, Any
+from typing import (
+    Generic,
+    TypeVar,
+    Tuple,
+    Hashable,
+    List,
+    Callable,
+    AnyStr,
+    Any,
+    get_args,
+)
 from dataclasses import dataclass
 from operator import attrgetter
 import copy
@@ -16,7 +26,13 @@ from .sets import DiscreteSet, ContinuousSet, DiscreteRange, ContinuousRange
 from .util import ABCComparator, IntFloatComparator
 
 
-__all__ = ["TimeSlot", "ABCProfile", "DiscreteProfile", "ProfileEntry"]
+__all__ = [
+    "TimeSlot",
+    "ABCProfile",
+    "DiscreteProfile",
+    "ProfileEntry",
+    "ContinuousProfile",
+]
 
 
 T = TypeVar("T", DiscreteRange, ContinuousRange)
@@ -31,7 +47,8 @@ class TimeSlot(Generic[T, C]):
 
     This class represents a time slot over which resources are free or in use
     """
-    __slots__ = ['period', 'resources']
+
+    __slots__ = ["period", "resources"]
 
     period: T
     """ The time period """
@@ -255,8 +272,8 @@ class ABCProfile(ABC, Generic[K, C, T]):
                 resources = None
                 break
 
-        return TimeSlot(
-            period=DiscreteRange(start_time, start_time + duration), resources=resources
+        return self.make_slot(
+            start_time=start_time, end_time=start_time + duration, resources=resources
         )
 
     def find_start_time(
@@ -297,8 +314,9 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
             in_quantity = intersect.quantity
             if self._comp.value_ge(in_quantity, quantity):
-                return TimeSlot(
-                    period=DiscreteRange(pos_start, pos_start + duration),
+                return self.make_slot(
+                    start_time=pos_start,
+                    end_time=pos_start + duration,
                     resources=intersect,
                 )
 
@@ -384,7 +402,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
                 continue
 
             slot_start = entry.time
-            slot_start_idx = slot_end_idx = idx
+            slot_start_idx = idx
             follow_entry: C
 
             # check all possible time slots starting at slot_start
@@ -466,8 +484,9 @@ class ABCProfile(ABC, Generic[K, C, T]):
                         slot_end - slot_start, min_duration
                     ) and self._comp.value_ge(slot_res.quantity, min_quantity):
                         slots.append(
-                            TimeSlot(
-                                period=DiscreteRange(slot_start, slot_end),
+                            self.make_slot(
+                                start_time=slot_start,
+                                end_time=slot_end,
                                 resources=copy.copy(slot_res),
                             )
                         )
@@ -479,8 +498,9 @@ class ABCProfile(ABC, Generic[K, C, T]):
                         end_time - slot_start, min_duration
                     ) and self._comp.value_ge(slot_res.quantity, min_quantity):
                         slots.append(
-                            TimeSlot(
-                                period=DiscreteRange(slot_start, end_time),
+                            self.make_slot(
+                                start_time=slot_start,
+                                end_time=end_time,
                                 resources=copy.copy(slot_res),
                             )
                         )
@@ -517,3 +537,34 @@ class DiscreteProfile(ABCProfile[int, DiscreteSet, DiscreteRange]):
         start_time: int, end_time: int, resources: DiscreteSet
     ) -> TimeSlot[DiscreteRange, DiscreteSet]:
         return TimeSlot(period=DiscreteRange(start_time, end_time), resources=resources)
+
+
+class ContinuousProfile(ABCProfile[float, ContinuousSet, ContinuousRange]):
+    """
+    Continuous availability profile.
+
+    Availability profile that handles continuous time and resources (floats)
+    """
+
+    def __init__(self, max_capacity: K):
+        super().__init__(max_capacity=max_capacity, comparator=IntFloatComparator)
+
+    def create_first_entry(self) -> None:
+        """
+        Creates the first entry at time 0
+
+        Returns:
+            None
+        """
+        first_entry = ProfileEntry(
+            0.0, ContinuousSet([ContinuousRange(0.0, self.max_capacity)])
+        )
+        self.add_entry(first_entry)
+
+    @staticmethod
+    def make_slot(
+        start_time: float, end_time: float, resources: ContinuousSet
+    ) -> TimeSlot[ContinuousRange, ContinuousSet]:
+        return TimeSlot(
+            period=ContinuousRange(start_time, end_time), resources=resources
+        )

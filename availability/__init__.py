@@ -6,16 +6,17 @@ be used to keep track of how computing resources are allocated to application
 services or tasks.
 """
 
-__version__ = '0.0.1'
+__version__ = "0.0.1"
 
 from .sets import ContinuousSet, DiscreteSet, DiscreteRange, ContinuousRange
-from .profile import DiscreteProfile, TimeSlot
+from .profile import DiscreteProfile, TimeSlot, ContinuousProfile
 
 __all__ = [
-    'ContinuousSet',
-    'DiscreteSet',
-    'DiscreteRange',
-    'ContinuousRange',
-    'DiscreteProfile',
-    'TimeSlot'
+    "ContinuousSet",
+    "DiscreteSet",
+    "DiscreteRange",
+    "ContinuousRange",
+    "DiscreteProfile",
+    "ContinuousProfile",
+    "TimeSlot",
 ]

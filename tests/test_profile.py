@@ -10,6 +10,7 @@ from availability import (
     DiscreteSet,
     ContinuousSet,
     DiscreteProfile,
+    ContinuousProfile
 )
 
 
@@ -136,6 +137,46 @@ class TestDiscreteProfile(unittest.TestCase):
         self.assertIn(DiscreteRange(7, 10), slots[1].resources)
         self.assertIn(DiscreteRange(0, 2), slots[2].resources)
         self.assertIn(DiscreteRange(0, 10), slots[3].resources)
+
+
+class TestContinuousProfile(unittest.TestCase):
+    """Tests the continuous availability profile."""
+
+    def setUp(self) -> None:
+        self.max_capacity = 10.0
+        self.profile = ContinuousProfile(max_capacity=self.max_capacity)
+
+    def tearDown(self) -> None:
+        del self.profile
+
+    def test_capacity(self) -> None:
+        """Test the profile's capacity"""
+        self.assertEqual(self.profile.max_capacity, self.max_capacity)
+        slot = self.profile.find_start_time(self.max_capacity, 0.0, 1.0)
+        self.assertEqual(slot.period.lower, 0.0)
+        self.assertEqual(slot.period.upper, 1.0)
+        self.assertEqual(slot.resources.quantity, self.max_capacity)
+
+    def _allocate(self) -> None:
+        """Allocates a few resources from the pool"""
+        span1 = ContinuousSet([ContinuousRange(2.0, 7.0)])
+        span2 = ContinuousSet([ContinuousRange(0.0, 2.0)])
+        self.profile.allocate_resources(resources=span1, start_time=5.0, end_time=10.0)
+        self.profile.allocate_resources(resources=span2, start_time=0.0, end_time=5.0)
+
+    def test_find_start_time(self):
+        """Tests finding the start time for a task"""
+        slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
+        self.assertEqual(slot.period.lower, 0.0)
+        self.assertEqual(slot.period.upper, 10.0)
+        self.assertEqual(
+            slot.resources, ContinuousSet([ContinuousRange(0.0, self.max_capacity)])
+        )
+        self._allocate()
+        slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
+        self.assertEqual(slot.period.lower, 5.0)
+        self.assertEqual(slot.period.upper, 15.0)
+        self.assertIn(ContinuousRange(7.0, 10.0), slot.resources)
 
 
 if __name__ == "__main__":
