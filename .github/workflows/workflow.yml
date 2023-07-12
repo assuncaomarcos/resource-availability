@@ -61,7 +61,7 @@ jobs:
         path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [test, build_sdist, build]
+    needs: [tests, build_sdist, build]
     runs-on: ubuntu-latest
     # upload to PyPI on every tag starting with 'v'
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
