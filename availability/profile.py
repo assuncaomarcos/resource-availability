@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-This module contains the data structure used to track the
-allocation of computing resources to tasks
+This module provides the availability profile classes, which use
+the ranges and sets to manage the resources available over time.
+Although :py:func:`ABCProfile` implements most of the availability
+profile behavior, as it is common to all profile structures, you
+will most likely instantiate :py:func:`DiscreteProfile` and
+:py:func:`ContinuousProfile` to manage CPUs and memory resources.
 """
 
 from __future__ import annotations
@@ -44,15 +48,17 @@ class TimeSlot(Generic[T, C]):
     """
     A time slot.
 
-    This class represents a time slot over which resources are free or in use
+    This class represents a time slot when a resource set is
+    available. Most of the operations of the availability profiles
+    return a time slot or sets thereof.
     """
 
     __slots__ = ["period", "resources"]
 
     period: T
-    """ The time period """
+    """ The time period (a range). """
     resources: C
-    """ The resources available during the period """
+    """ The resources available during the period. """
 
 
 @dataclass
@@ -60,17 +66,19 @@ class ProfileEntry(Generic[K, C], Hashable):
     """
     A profile entry.
 
-    An entry in the availability profile contains the
-    time of a change in resources and the sets of resources
-    available at the time .
+    An entry in the availability profile contains the `time` of a
+    change in resources and the `set` of available resources.
     """
 
     time: K
-    """ The time of the entry """
+    """ The time of the entry. """
     resources: C
-    """ The resource sets available at the time """
+    """ The resource set available at the time. """
     num_units: int = 1
-    """ The number of jobs/work units that use this entry to mark either their start or end time """
+    """ 
+    The number of jobs/work units that use this entry to
+    mark either their start or end time. 
+    """
 
     def __hash__(self):
         return self.time.__hash__()
@@ -78,7 +86,7 @@ class ProfileEntry(Generic[K, C], Hashable):
     @classmethod
     def make(cls, time: K, resources: C = None) -> ProfileEntry[K, C]:
         """
-        Creates an entry with the given time and resources.
+        Builds an entry with the given time and resources.
 
         Args:
             time: the time of the entry
@@ -94,7 +102,7 @@ class ProfileEntry(Generic[K, C], Hashable):
         Makes a copy of this entry, changing the time to the time provided.
 
         Args:
-            time: the time to use in the copy
+            time: the time to use in the copy.
 
         Returns:
             A copy of this entry.
@@ -107,19 +115,21 @@ class ProfileEntry(Generic[K, C], Hashable):
 
 
 class ABCProfile(ABC, Generic[K, C, T]):
-    """Abstract class with basic profile behavior
+    """
+    Abstract class with common profile behavior.
 
-    This class represents the availability profile containing the ranges of
-    resources available over time. Each entry in the profile contains a time and
-    a set containing the resource ranges available at the specific time.
+    This class represents the availability profile containing the resource sets
+    available over time. Each entry :py:func:`ProfileEntry` in the profile
+    contains a time and a set containing the resource ranges available at
+    the specific time.
     """
 
     _max_capacity: K
-    """ The maximum resource capacity at any given time """
+    """ The maximum resource capacity at any given time. """
     _comp: ABCComparator[K]
-    """ Comparator to compare times and quantities (they may be floats) """
+    """ Comparator to compare times and quantities (they may be floats). """
     _avail: SortedKeyList[ProfileEntry[K, C]]
-    """ The data structure used to store the availability information """
+    """ The data structure used to store the availability information. """
 
     def __init__(self, **kwargs):
         self._max_capacity = kwargs.get("max_capacity", 0)
@@ -369,23 +379,24 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         Returns the free time slots contained in this availability profile
         within a specified time period.
-        NOTE: The time slots returned by this method do not overlap.
+
+        **NOTE:** The time slots returned by this method do not overlap.
         That is, they are not the scheduling options for a task. They are
         the windows of availability. Also, they are sorted by start time.
         For example::
 
-              |-------------------------------------
-            C |    Job 3     |     Time Slot 3     |
-            P |-------------------------------------
-            U |    Job 2  |      Time Slot 2       |
-            s |-------------------------------------
-              |  Job 1 |  Time Slot 1  |   Job 4   |
-              +-------------------------------------
-          Start time         Time          Finish time
+                    |-------------------------------------
+                  C |    Job 3     |     Time Slot 3     |
+                  P |-------------------------------------
+                  U |    Job 2  |      Time Slot 2       |
+                  s |-------------------------------------
+                    |  Job 1 |  Time Slot 1  |   Job 4   |
+                    +-------------------------------------
+                Start time         Time          Finish time
 
         Args:
-            start_time: the start time to consider
-            end_time: the end time
+            start_time: the start time to consider.
+            end_time: the end time.
 
         Returns:
             A list of free time slots.
@@ -438,7 +449,8 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         Returns the scheduling options of this availability profile within the
         specified period of time.
-        NOTE: The time slots returned by this method OVERLAP because they are
+
+        **NOTE:** The time slots returned by this method **OVERLAP** because they are
         the scheduling options for jobs with the provided characteristics.
 
         Args:
