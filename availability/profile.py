@@ -28,8 +28,8 @@ from .util import ABCComparator, IntFloatComparator
 __all__ = [
     "TimeSlot",
     "ABCProfile",
-    "DiscreteProfile",
     "ProfileEntry",
+    "DiscreteProfile",
     "ContinuousProfile",
 ]
 
@@ -374,14 +374,14 @@ class ABCProfile(ABC, Generic[K, C, T]):
         the windows of availability. Also, they are sorted by start time.
         For example::
 
-          |-------------------------------------
-        C |    Job 3     |     Time Slot 3     |
-        P |-------------------------------------
-        U |    Job 2  |      Time Slot 2       |
-        s |-------------------------------------
-          |  Job 1 |  Time Slot 1  |   Job 4   |
-          +-------------------------------------
-        Start time         Time          Finish time
+              |-------------------------------------
+            C |    Job 3     |     Time Slot 3     |
+            P |-------------------------------------
+            U |    Job 2  |      Time Slot 2       |
+            s |-------------------------------------
+              |  Job 1 |  Time Slot 1  |   Job 4   |
+              +-------------------------------------
+          Start time         Time          Finish time
 
         Args:
             start_time: the start time to consider
@@ -457,7 +457,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         slots: List[TimeSlot[T, C]] = []
         index, _ = self._find_place_before(start_time)
 
-        for idx_in, entry in enumerate(self._avail[index:]):
+        for index, entry in enumerate(self._avail[index:]):
             if self._comp.value_ge(entry.time, end_time):
                 break
             if self._comp.value_eq(entry.resources.quantity, 0):
@@ -468,7 +468,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             while slot_res is not None and slot_res.quantity > 0:
                 start_quantity = slot_res.quantity
                 changed = False
-                for next_entry in self._avail[idx_in + 1 :]:
+                for next_entry in self._avail[index + 1:]:
                     if changed or self._comp.value_ge(next_entry.time, end_time):
                         break
                     intersection = slot_res & next_entry.resources

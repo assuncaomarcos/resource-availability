@@ -4,13 +4,15 @@
 
 import unittest
 
-from availability import (
+from availability.sets import (
     DiscreteRange,
     ContinuousRange,
     DiscreteSet,
-    ContinuousSet,
+    ContinuousSet
+)
+from availability.profile import (
     DiscreteProfile,
-    ContinuousProfile,
+    ContinuousProfile
 )
 
 
