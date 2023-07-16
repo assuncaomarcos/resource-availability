@@ -46,7 +46,8 @@ dependencies = ["sortedcontainers", "Spans" ]
 version = {attr = "availability.__version__"}
 
 [project.optional-dependencies]
-#dev = []
+dev = ["coverage>=5.3", "black", "build"]
+docs = ["Sphinx", "docutils", "nbsphinx"]
 test = ["coverage"]
 
 [project.urls]
@@ -54,3 +55,4 @@ test = ["coverage"]
 "Bug Reports" = "https://github.com/assuncaomarcos/resource-availability"
 "Say Thanks!" = "https://saythanks.io/to/assuncaomarcos"
 "Source" = "https://github.com/assuncaomarcos/resource-availability"
+documentation = "http://resource-availability.readthedocs.io/"

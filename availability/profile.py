@@ -11,18 +11,8 @@ will most likely instantiate :py:func:`DiscreteProfile` and
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import (
-    Generic,
-    TypeVar,
-    Tuple,
-    Hashable,
-    List,
-    Callable,
-    AnyStr,
-    Any
-)
+from typing import Generic, TypeVar, Tuple, Hashable, List, Callable, AnyStr, Any
 from dataclasses import dataclass
-from functools import singledispatchmethod
 from operator import attrgetter
 import copy
 from sortedcontainers import SortedKeyList
@@ -341,7 +331,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         """
         if self._comp.value_gt(quantity, resources.quantity):
             raise ValueError(
-                "The resource set does not offer the "
+                "The resource set does not offer the " 
                 "resource quantity required."
             )
 
@@ -351,9 +341,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         curr_quantity = quantity
         for res_range in resources:
             range_class = res_range.__class__
-            if self._comp.value_ge(
-                    res_range.quantity, curr_quantity
-            ):
+            if self._comp.value_ge(res_range.quantity, curr_quantity):
                 begin = res_range.lower
                 end = begin + curr_quantity
                 selected.add(range_class(begin, end))
@@ -364,9 +352,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         return selected
 
-    def select_slot_resources(
-            self, slot: TimeSlot[T, C], quantity: K
-        ) -> C:
+    def select_slot_resources(self, slot: TimeSlot[T, C], quantity: K) -> C:
         """
         Selects a quantity of resources from a time slot.
 
@@ -382,10 +368,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             The selected resource set.
         """
         if slot.resources is not None:
-            return self.select_resources(
-                resources=slot.resources,
-                quantity=quantity
-            )
+            return self.select_resources(resources=slot.resources, quantity=quantity)
         raise ValueError("Cannot select from resource less slot.")
 
     def allocate_resources(self, resources: C, start_time: K, end_time: K) -> None:
@@ -537,7 +520,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             while slot_res is not None and slot_res.quantity > 0:
                 start_quantity = slot_res.quantity
                 changed = False
-                for next_entry in self._avail[index + 1:]:
+                for next_entry in self._avail[index + 1 :]:
                     if changed or self._comp.value_ge(next_entry.time, end_time):
                         break
                     intersection = slot_res & next_entry.resources

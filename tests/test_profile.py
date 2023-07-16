@@ -4,16 +4,8 @@
 
 import unittest
 
-from availability.sets import (
-    DiscreteRange,
-    ContinuousRange,
-    DiscreteSet,
-    ContinuousSet
-)
-from availability.profile import (
-    DiscreteProfile,
-    ContinuousProfile
-)
+from availability.sets import DiscreteRange, ContinuousRange, DiscreteSet, ContinuousSet
+from availability.profile import DiscreteProfile, ContinuousProfile
 
 
 class TestResourceRanges(unittest.TestCase):
@@ -197,11 +189,15 @@ class TestContinuousProfile(unittest.TestCase):
     def test_selecting_resources(self):
         """Tests selecting resources from a slot"""
         slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
-        resources = self.profile.select_resources(resources=slot.resources, quantity=5.0)
+        resources = self.profile.select_resources(
+            resources=slot.resources, quantity=5.0
+        )
         self.assertEqual(resources.quantity, 5.0)
         self._allocate()
         slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
-        resources = self.profile.select_resources(resources=slot.resources, quantity=5.0)
+        resources = self.profile.select_resources(
+            resources=slot.resources, quantity=5.0
+        )
         self.assertEqual(resources.quantity, 5.0)
         self.assertRaises(ValueError, self.profile.select_resources, resources, 15.0)
         resources = self.profile.select_slot_resources(slot=slot, quantity=5.0)
