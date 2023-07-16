@@ -98,6 +98,20 @@ class TestDiscreteProfile(unittest.TestCase):
         self.assertEqual(slot.period.upper, 15)
         self.assertIn(DiscreteRange(7, 10), slot.resources)
 
+    def test_selecting_resources(self):
+        """Tests selecting resources from a slot"""
+        slot = self.profile.find_start_time(quantity=5, ready_time=0, duration=10)
+        resources = self.profile.select_resources(resources=slot.resources, quantity=5)
+        self.assertEqual(resources.quantity, 5)
+        self._allocate()
+        slot = self.profile.find_start_time(quantity=5, ready_time=0, duration=10)
+        resources = self.profile.select_resources(resources=slot.resources, quantity=5)
+        self.assertEqual(resources.quantity, 5)
+        self.assertRaises(ValueError, self.profile.select_resources, resources, 15)
+        resources = self.profile.select_slot_resources(slot=slot, quantity=5)
+        self.assertEqual(resources.quantity, 5)
+        self.assertRaises(ValueError, self.profile.select_slot_resources, slot, 15)
+
     def _allocate(self) -> None:
         """Allocates a few resources from the pool"""
         span1 = DiscreteSet([DiscreteRange(2, 7)])
@@ -179,6 +193,20 @@ class TestContinuousProfile(unittest.TestCase):
         self.assertEqual(slot.period.lower, 5.0)
         self.assertEqual(slot.period.upper, 15.0)
         self.assertIn(ContinuousRange(7.0, 10.0), slot.resources)
+
+    def test_selecting_resources(self):
+        """Tests selecting resources from a slot"""
+        slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
+        resources = self.profile.select_resources(resources=slot.resources, quantity=5.0)
+        self.assertEqual(resources.quantity, 5.0)
+        self._allocate()
+        slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
+        resources = self.profile.select_resources(resources=slot.resources, quantity=5.0)
+        self.assertEqual(resources.quantity, 5.0)
+        self.assertRaises(ValueError, self.profile.select_resources, resources, 15.0)
+        resources = self.profile.select_slot_resources(slot=slot, quantity=5.0)
+        self.assertEqual(resources.quantity, 5.0)
+        self.assertRaises(ValueError, self.profile.select_slot_resources, slot, 15.0)
 
     def test_time_slots(self) -> None:
         """Tests obtaining the free time slots in the pool"""

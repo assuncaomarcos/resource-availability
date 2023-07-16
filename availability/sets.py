@@ -51,6 +51,16 @@ class DiscreteRange(intrange):
         """
         super().__init__(lower, upper, lower_inc, upper_inc)
 
+    @property
+    def quantity(self) -> int:
+        """
+        Obtains the number of resources in the range.
+
+        Returns:
+            The number of resources.
+        """
+        return len(self)
+
     __slots__ = ()
 
 
@@ -88,6 +98,16 @@ class ContinuousRange(floatrange):
             upper = float(upper)
         super().__init__(lower, upper, lower_inc, upper_inc)
 
+    @property
+    def quantity(self) -> float:
+        """
+        Obtains the amount of resources in the range.
+
+        Returns:
+            The amount of resources.
+        """
+        return self.upper - self.lower
+
     __slots__ = ()
 
 
@@ -110,7 +130,7 @@ class DiscreteSet(intrangeset):
         Returns:
             The number of resources.
         """
-        return sum(len(i) for i in iter(self))
+        return sum(i.quantity for i in iter(self))
 
     type = DiscreteRange  # used by intrangeset
 
@@ -134,6 +154,6 @@ class ContinuousSet(floatrangeset):
         Returns:
             The resource amount.
         """
-        return sum(i.upper - i.lower for i in iter(self))
+        return sum(i.quantity for i in iter(self))
 
     type = ContinuousRange  # used by floatrangeset

@@ -57,9 +57,7 @@ for `50` time units can start:
 .. code-block:: python
 
     slot = profile.find_start_time(
-            quantity=40,
-            ready_time=5,
-            duration=50
+        quantity=40, ready_time=5, duration=50
     )
 
 The returned `slot` will resemble:
@@ -78,9 +76,7 @@ given period:
 .. code-block:: python
 
     slot = profile.check_availability(
-        quantity=10,
-        start_time=5,
-        duration=50
+        quantity=10, start_time=5, duration=50
     )
 
 One can use the methods `free_time_slots()` or `scheduling_options()`
@@ -97,4 +93,19 @@ period:
         end_time=100,
         min_duration=20,
         min_quantity=5
+    )
+
+The operations for querying the resources available during a period
+return the complete set of resources available. This design allows a
+user to implement their resource selection policy. However, you
+can use `select_resources()` or `select_slot_resources()` to
+select a given number of resources from a set or slot:
+
+.. code-block:: python
+
+    slot = profile.find_start_time(
+        quantity=5, ready_time=0, duration=10
+    )
+    selected = profile.select_resources(
+        resources=slot.resources, quantity=5)
     )

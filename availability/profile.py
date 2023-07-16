@@ -22,6 +22,7 @@ from typing import (
     Any
 )
 from dataclasses import dataclass
+from functools import singledispatchmethod
 from operator import attrgetter
 import copy
 from sortedcontainers import SortedKeyList
@@ -138,7 +139,6 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         self._comp = kwargs.get("comparator", None)
         self._avail = SortedKeyList(key=self.key_by_time())
-        self.create_first_entry()
 
     @staticmethod
     def key_by_time() -> Callable[[AnyStr], Any]:
@@ -149,16 +149,6 @@ class ABCProfile(ABC, Generic[K, C, T]):
             The function to use.
         """
         return attrgetter("time")
-
-    @abstractmethod
-    def create_first_entry(self) -> None:
-        """
-        Creates the first entry in the profile.
-
-        Returns:
-            None
-        """
-        raise NotImplementedError
 
     def add_entry(self, entry: ProfileEntry[K, C]) -> None:
         """
@@ -330,6 +320,73 @@ class ABCProfile(ABC, Generic[K, C, T]):
                 )
 
         return None
+
+    def select_resources(self, resources: C, quantity: K) -> C:
+        """
+        Selects a quantity of resources.
+
+        This is a helper method for selecting resource
+        quantity from the given set.
+
+        Args:
+            resources: the set to select resources from
+            quantity: the required quantity of resources
+
+        Raises:
+            ValueError: when requesting more resources than what
+                        the resource set contains.
+
+        Returns:
+            The selected resource set.
+        """
+        if self._comp.value_gt(quantity, resources.quantity):
+            raise ValueError(
+                "The resource set does not offer the "
+                "resource quantity required."
+            )
+
+        set_class = resources.__class__
+        selected = set_class([])
+
+        curr_quantity = quantity
+        for res_range in resources:
+            range_class = res_range.__class__
+            if self._comp.value_ge(
+                    res_range.quantity, curr_quantity
+            ):
+                begin = res_range.lower
+                end = begin + curr_quantity
+                selected.add(range_class(begin, end))
+                break
+
+            selected.add(copy.copy(res_range))
+            curr_quantity -= res_range.quantity
+
+        return selected
+
+    def select_slot_resources(
+            self, slot: TimeSlot[T, C], quantity: K
+        ) -> C:
+        """
+        Selects a quantity of resources from a time slot.
+
+        Args:
+            slot: the time slot
+            quantity: the quantity of resources required.
+
+        Raises:
+            ValueError: when requesting more resources than what
+                        the resource set contains.
+
+        Returns:
+            The selected resource set.
+        """
+        if slot.resources is not None:
+            return self.select_resources(
+                resources=slot.resources,
+                quantity=quantity
+            )
+        raise ValueError("Cannot select from resource less slot.")
 
     def allocate_resources(self, resources: C, start_time: K, end_time: K) -> None:
         """
@@ -530,14 +587,6 @@ class DiscreteProfile(ABCProfile[int, DiscreteSet, DiscreteRange]):
 
     def __init__(self, max_capacity: int):
         super().__init__(max_capacity=max_capacity, comparator=IntFloatComparator)
-
-    def create_first_entry(self) -> None:
-        """
-        Creates the first entry at time 0
-
-        Returns:
-            None
-        """
         first_entry = ProfileEntry(
             0, DiscreteSet([DiscreteRange(0, self.max_capacity)])
         )
@@ -559,14 +608,6 @@ class ContinuousProfile(ABCProfile[float, ContinuousSet, ContinuousRange]):
 
     def __init__(self, max_capacity: K):
         super().__init__(max_capacity=max_capacity, comparator=IntFloatComparator)
-
-    def create_first_entry(self) -> None:
-        """
-        Creates the first entry at time 0
-
-        Returns:
-            None
-        """
         first_entry = ProfileEntry(
             0.0, ContinuousSet([ContinuousRange(0.0, self.max_capacity)])
         )
