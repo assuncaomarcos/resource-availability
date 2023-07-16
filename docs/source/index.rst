@@ -12,6 +12,9 @@ Welcome to Resource Availability Profile's documentation!
 
    modules
 
+.. include:: ../../README.rst
+   :start-after: inclusion-marker-do-not-remove
+
 Indices and tables
 ==================
 

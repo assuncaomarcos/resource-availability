@@ -39,7 +39,7 @@ availability.profile module
 .. autoclass:: ABCProfile
    :members:
    :show-inheritance:
-   :exclude-members: create_first_entry
+   :exclude-members: create_first_entry, key_by_time
 .. autoclass:: DiscreteProfile
    :members:
    :show-inheritance:
@@ -48,11 +48,6 @@ availability.profile module
    :members:
    :show-inheritance:
    :exclude-members: create_first_entry
-
-
-
-
-
 
 availability.util module
 ------------------------
