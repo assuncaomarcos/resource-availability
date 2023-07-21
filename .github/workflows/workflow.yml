@@ -22,7 +22,25 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m unittest tests/test_profile.py
+          pip install coveralls
+          coverage run -m unittest tests/test_profile.py
+          coverage report -m
+      - name: Coveralls Parallel
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          github-token: ${{ secrets.github_token }}
+          parallel: true
+
+  finish_build:
+    name: Finish Coveralls
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Finished
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          github-token: ${{ secrets.github_token }}
+          parallel-finished: true
 
   build:
     name: Build wheels

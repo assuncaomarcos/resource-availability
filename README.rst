@@ -3,6 +3,9 @@
 .. image:: https://readthedocs.org/projects/resource-availability/badge/?version=latest
     :target: https://resource-availability.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+.. image:: https://coveralls.io/repos/github/assuncaomarcos/resource-availability/badge.svg?branch=master
+    :target: https://coveralls.io/github/assuncaomarcos/resource-availability?branch=master
+
 
 Resource Availability Profile
 =============================
