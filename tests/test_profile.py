@@ -122,6 +122,8 @@ class TestDiscreteProfile(unittest.TestCase):
         self.assertIn(DiscreteRange(0, 2), slots[2].resources)
         self.assertIn(DiscreteRange(2, 7), slots[3].resources)
         self.assertIn(DiscreteRange(10, 20), slots[3].period)
+        slots = self.profile.free_time_slots(start_time=0, end_time=5)
+        self.assertEqual(len(slots), 3)
 
     def test_allocate(self) -> None:
         """Test multiple allocations"""
@@ -145,6 +147,12 @@ class TestDiscreteProfile(unittest.TestCase):
         self.assertIn(DiscreteRange(7, 10), slots[1].resources)
         self.assertIn(DiscreteRange(0, 2), slots[2].resources)
         self.assertIn(DiscreteRange(0, 10), slots[3].resources)
+
+    def test_remove_past_entries(self):
+        """Tests removing past entries"""
+        self._allocate()
+        self.profile.remove_past_entries(earliest_time=5)
+        self.assertEqual(len(self.profile), 2)
 
 
 class TestContinuousProfile(unittest.TestCase):
@@ -238,6 +246,12 @@ class TestContinuousProfile(unittest.TestCase):
         self.assertIn(ContinuousRange(7, 10), slots[1].resources)
         self.assertIn(ContinuousRange(0, 2), slots[2].resources)
         self.assertIn(ContinuousRange(0, 10), slots[3].resources)
+
+    def test_remove_past_entries(self):
+        """Tests removing past entries"""
+        self._allocate()
+        self.profile.remove_past_entries(earliest_time=5.0)
+        self.assertEqual(len(self.profile), 2)
 
 
 if __name__ == "__main__":

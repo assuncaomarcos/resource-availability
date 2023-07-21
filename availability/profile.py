@@ -558,6 +558,15 @@ class ABCProfile(ABC, Generic[K, C, T]):
                     slot_res = None
         return slots
 
+    def __len__(self) -> int:
+        """
+        Returns the number of entries in this profile.
+
+        Returns:
+            The number of entries
+        """
+        return len(self._avail)
+
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(max_capacity={self.max_capacity}, "
