@@ -5,7 +5,8 @@
 import unittest
 
 from availability.sets import DiscreteRange, ContinuousRange, DiscreteSet, ContinuousSet
-from availability.profile import DiscreteProfile, ContinuousProfile
+from availability.profile import DiscreteProfile, ContinuousProfile, ProfileEntry
+from availability.util import IntFloatComparator
 
 
 class TestResourceRanges(unittest.TestCase):
@@ -56,6 +57,21 @@ class TestResourceSets(unittest.TestCase):
         self.assertEqual(spans.quantity, 20.0)
         spans -= ContinuousSet([ContinuousRange(10.0, 20.0)])
         self.assertEqual(spans.quantity, 10.0)
+
+
+class TestProfileEntry(unittest.TestCase):
+    """ Basic tests for profile entries """
+
+    def test_hash(self):
+        """ Tests the hashing """
+
+        resources = DiscreteSet([DiscreteRange(0, 10)])
+        entry1 = ProfileEntry(time=0, resources=resources)
+        entry2 = ProfileEntry(time=0, resources=resources)
+        entry3 = ProfileEntry(time=10, resources=resources)
+        self.assertEqual(hash(entry1), hash(entry2))
+        self.assertNotEqual(hash(entry1), hash(entry3))
+        self.assertNotEqual(hash(entry2), hash(entry3))
 
 
 class TestDiscreteProfile(unittest.TestCase):
@@ -252,6 +268,27 @@ class TestContinuousProfile(unittest.TestCase):
         self._allocate()
         self.profile.remove_past_entries(earliest_time=5.0)
         self.assertEqual(len(self.profile), 2)
+
+
+class TestComparator(unittest.TestCase):
+    """ Tests the comparators """
+
+    def setUp(self) -> None:
+        self.comp = IntFloatComparator()
+
+    def tearDown(self) -> None:
+        del self.comp
+
+    def test_comparisons(self):
+        """ Tests comparisons with the comparator """
+        self.assertTrue(self.comp.value_lt(2, 5))
+        self.assertFalse(self.comp.value_lt(2, 2))
+        self.assertTrue(self.comp.value_le(2, 2))
+        self.assertTrue(self.comp.value_eq(2.0, 2))
+        self.assertFalse(self.comp.value_eq(2.0, 2.01))
+        self.assertTrue(self.comp.value_ge(2.0, 2.0))
+        self.assertTrue(self.comp.value_ge(2.0001, 2.0))
+        self.assertTrue(self.comp.value_ne(2.0001, 2.0))
 
 
 if __name__ == "__main__":
