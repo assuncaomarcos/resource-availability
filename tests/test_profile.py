@@ -119,6 +119,14 @@ class TestDiscreteProfile(unittest.TestCase):
         resources = self.profile.select_slot_resources(slot=slot, quantity=5)
         self.assertEqual(resources.quantity, 5)
         self.assertRaises(ValueError, self.profile.select_slot_resources, slot, 15)
+        slot = self.profile.find_start_time(quantity=10, ready_time=5, duration=2)
+        self.assertEqual(slot.period.lower, 10)
+        # Try selecting from None
+        slot = self.profile.find_start_time(quantity=12, ready_time=5, duration=2)
+        with self.assertRaises(ValueError):
+            self.profile.select_slot_resources(slot=slot, quantity=5)
+        with self.assertRaises(ValueError):
+            self.profile.select_resources(resources=None, quantity=5)
 
     def _allocate(self) -> None:
         """Allocates a few resources from the pool"""
@@ -170,6 +178,13 @@ class TestDiscreteProfile(unittest.TestCase):
         self.profile.remove_past_entries(earliest_time=5)
         self.assertEqual(len(self.profile), 2)
 
+    def test_repr(self):
+        """ Tests string representation """
+        expected = "DiscreteProfile(max_capacity=10, avail=SortedKeyList(" \
+                   "[ProfileEntry(time=0, resources=DiscreteSet(" \
+                   "[DiscreteRange(0, 10)]), num_units=1)], " \
+                   "key=operator.attrgetter('time')))"
+        self.assertEqual(repr(self.profile), expected)
 
 class TestContinuousProfile(unittest.TestCase):
     """Tests the continuous availability profile."""

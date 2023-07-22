@@ -329,6 +329,9 @@ class ABCProfile(ABC, Generic[K, C, T]):
         Returns:
             The selected resource set.
         """
+        if resources is None:
+            raise ValueError("Cannot select resources from None.")
+
         if self._comp.value_gt(quantity, resources.quantity):
             raise ValueError(
                 "The resource set does not offer the " 
@@ -367,7 +370,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         Returns:
             The selected resource set.
         """
-        if slot.resources is not None:
+        if slot is not None:
             return self.select_resources(resources=slot.resources, quantity=quantity)
         raise ValueError("Cannot select from resource less slot.")
 
