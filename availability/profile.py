@@ -29,9 +29,8 @@ __all__ = [
 ]
 
 
-T = TypeVar("T", DiscreteRange, ContinuousRange)
-C = TypeVar("C", DiscreteSet, ContinuousSet, None)
-K = TypeVar("K", int, float)
+C = TypeVar("C", DiscreteSet, ContinuousSet, None)  # content type
+T = TypeVar("T", int, float)  # time type
 
 
 @dataclass
@@ -44,16 +43,18 @@ class TimeSlot(Generic[T, C]):
     return a time slot or sets thereof.
     """
 
-    __slots__ = ["period", "resources"]
+    __slots__ = ["start_time", "end_time", "resources"]
 
-    period: T
-    """ The time period (a range). """
+    start_time: T
+    """ The start of the time period """
+    end_time: T
+    """ The end of the time period """
     resources: C
     """ The resources available during the period. """
 
 
 @dataclass
-class ProfileEntry(Generic[K, C], Hashable):
+class ProfileEntry(Generic[T, C], Hashable):
     """
     A profile entry.
 
@@ -61,7 +62,7 @@ class ProfileEntry(Generic[K, C], Hashable):
     change in resources and the `set` of available resources.
     """
 
-    time: K
+    time: T
     """ The time of the entry. """
     resources: C
     """ The resource set available at the time. """
@@ -75,7 +76,7 @@ class ProfileEntry(Generic[K, C], Hashable):
         return self.time.__hash__()
 
     @classmethod
-    def make(cls, time: K, resources: C = None) -> ProfileEntry[K, C]:
+    def make(cls, time: T, resources: C = None) -> ProfileEntry[T, C]:
         """
         Builds an entry with the given time and resources.
 
@@ -88,7 +89,7 @@ class ProfileEntry(Generic[K, C], Hashable):
         """
         return ProfileEntry(time=time, resources=resources)
 
-    def copy(self, time: K = None) -> ProfileEntry[K, C]:
+    def copy(self, time: T = None) -> ProfileEntry[T, C]:
         """
         Makes a copy of this entry, changing the time to the time provided.
 
@@ -105,7 +106,7 @@ class ProfileEntry(Generic[K, C], Hashable):
         return ProfileEntry(time=self.time, resources=copy.copy(self.resources))
 
 
-class ABCProfile(ABC, Generic[K, C, T]):
+class ABCProfile(ABC, Generic[T, C]):
     """
     Abstract class with common profile behavior.
 
@@ -115,11 +116,11 @@ class ABCProfile(ABC, Generic[K, C, T]):
     the specific time.
     """
 
-    _max_capacity: K
+    _max_capacity: T
     """ The maximum resource capacity at any given time. """
-    _comp: ABCComparator[K]
+    _comp: ABCComparator[T]
     """ Comparator to compare times and quantities (they may be floats). """
-    _avail: SortedKeyList[ProfileEntry[K, C]]
+    _avail: SortedKeyList[ProfileEntry[T, C]]
     """ The data structure used to store the availability information. """
 
     def __init__(self, **kwargs):
@@ -140,7 +141,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         """
         return attrgetter("time")
 
-    def add_entry(self, entry: ProfileEntry[K, C]) -> None:
+    def add_entry(self, entry: ProfileEntry[T, C]) -> None:
         """
         Adds an entry to the availability data structure.
 
@@ -153,7 +154,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         self._avail.add(entry)
 
     @property
-    def max_capacity(self) -> K:
+    def max_capacity(self) -> T:
         """
         Obtains the maximum resource capacity of this profile.
 
@@ -164,7 +165,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
     @staticmethod
     @abstractmethod
-    def make_slot(start_time: K, end_time: K, resources: C) -> TimeSlot[T, C]:
+    def make_slot(start_time: T, end_time: T, resources: C) -> TimeSlot[T, C]:
         """
         Creates a time slot whose types are compliant with this profile.
 
@@ -178,7 +179,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         """
         raise NotImplementedError
 
-    def _find_place_before(self, value: K) -> Tuple[int, ProfileEntry]:
+    def _find_place_before(self, value: T) -> Tuple[int, ProfileEntry]:
         """
         Returns the index and entry located before the position where
         the provided value would be placed in the data structure.
@@ -193,7 +194,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         return index, None if index < 0 else self._avail[index]
 
     def _clone_availability(
-        self, start_time: K, end_time: K
+        self, start_time: T, end_time: T
     ) -> SortedKeyList[ProfileEntry]:
         """
         Returns a shallow copy of the availability structure
@@ -218,7 +219,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         return cloned
 
-    def remove_past_entries(self, earliest_time: K) -> None:
+    def remove_past_entries(self, earliest_time: T) -> None:
         """
         Removes entries in the availability structure
         whose time is before the provided time.
@@ -234,7 +235,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             self._avail = self._avail[index:]
 
     def check_availability(
-        self, quantity: K, start_time: K, duration: K
+        self, quantity: T, start_time: T, duration: T
     ) -> TimeSlot[T, C]:
         """
         Checks the resource availability.
@@ -251,7 +252,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             A time slot with the searched interval and resource sets available.
         """
         index, entry = self._find_place_before(start_time)
-        end_time: K = start_time + duration
+        end_time: T = start_time + duration
         resources: C = entry.resources.copy()
         for entry in self._avail[index:]:
             if entry.time >= end_time:
@@ -266,8 +267,8 @@ class ABCProfile(ABC, Generic[K, C, T]):
         )
 
     def find_start_time(
-        self, quantity: K, ready_time: K, duration: K
-    ) -> TimeSlot | None:
+        self, quantity: T, ready_time: T, duration: T
+    ) -> TimeSlot[T, C] | None:
         """
         Finds a start time.
 
@@ -311,7 +312,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         return None
 
-    def select_resources(self, resources: C, quantity: K) -> C:
+    def select_resources(self, resources: C, quantity: T) -> C:
         """
         Selects a quantity of resources.
 
@@ -334,8 +335,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         if self._comp.value_gt(quantity, resources.quantity):
             raise ValueError(
-                "The resource set does not offer the " 
-                "resource quantity required."
+                "The resource set does not offer the resource quantity required."
             )
 
         set_class = resources.__class__
@@ -355,7 +355,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
 
         return selected
 
-    def select_slot_resources(self, slot: TimeSlot[T, C], quantity: K) -> C:
+    def select_slot_resources(self, slot: TimeSlot[T, C], quantity: T) -> C:
         """
         Selects a quantity of resources from a time slot.
 
@@ -374,7 +374,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             return self.select_resources(resources=slot.resources, quantity=quantity)
         raise ValueError("Cannot select from resource less slot.")
 
-    def allocate_resources(self, resources: C, start_time: K, end_time: K) -> None:
+    def allocate_resources(self, resources: C, start_time: T, end_time: T) -> None:
         """
         Allocates resources.
 
@@ -390,7 +390,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             None
         """
         index, start_entry = self._find_place_before(start_time)
-        last_checked: ProfileEntry[K, C] = start_entry.copy(time=start_time)
+        last_checked: ProfileEntry[T, C] = start_entry.copy(time=start_time)
 
         # If the time of anchor is equal to the finish time, then a new
         # anchor is not required. We increase the number of tasks
@@ -416,7 +416,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
             self._avail.add(last_checked.copy(time=end_time))
             last_checked.resources -= resources
 
-    def free_time_slots(self, start_time: K, end_time: K) -> List[TimeSlot]:
+    def free_time_slots(self, start_time: T, end_time: T) -> List[TimeSlot]:
         """
         Gets the free time slots.
 
@@ -485,7 +485,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         return slots
 
     def scheduling_options(
-        self, start_time: K, end_time: K, min_duration: K, min_quantity: K = 1
+        self, start_time: T, end_time: T, min_duration: T, min_quantity: T = 1
     ) -> List[TimeSlot]:
         """
         Gets the scheduling options.
@@ -577,7 +577,7 @@ class ABCProfile(ABC, Generic[K, C, T]):
         )
 
 
-class DiscreteProfile(ABCProfile[int, DiscreteSet, DiscreteRange]):
+class DiscreteProfile(ABCProfile[int, DiscreteSet]):
     """Availability profile that handles discrete time and resources"""
 
     def __init__(self, max_capacity: int):
@@ -590,18 +590,18 @@ class DiscreteProfile(ABCProfile[int, DiscreteSet, DiscreteRange]):
     @staticmethod
     def make_slot(
         start_time: int, end_time: int, resources: DiscreteSet
-    ) -> TimeSlot[DiscreteRange, DiscreteSet]:
-        return TimeSlot(period=DiscreteRange(start_time, end_time), resources=resources)
+    ) -> TimeSlot[int, DiscreteSet]:
+        return TimeSlot(start_time=start_time, end_time=end_time, resources=resources)
 
 
-class ContinuousProfile(ABCProfile[float, ContinuousSet, ContinuousRange]):
+class ContinuousProfile(ABCProfile[float, ContinuousSet]):
     """
     Continuous availability profile.
 
     Availability profile that handles continuous time and resources (floats)
     """
 
-    def __init__(self, max_capacity: K):
+    def __init__(self, max_capacity: T):
         super().__init__(max_capacity=max_capacity, comparator=IntFloatComparator)
         first_entry = ProfileEntry(
             0.0, ContinuousSet([ContinuousRange(0.0, self.max_capacity)])
@@ -611,7 +611,5 @@ class ContinuousProfile(ABCProfile[float, ContinuousSet, ContinuousRange]):
     @staticmethod
     def make_slot(
         start_time: float, end_time: float, resources: ContinuousSet
-    ) -> TimeSlot[ContinuousRange, ContinuousSet]:
-        return TimeSlot(
-            period=ContinuousRange(start_time, end_time), resources=resources
-        )
+    ) -> TimeSlot[float, ContinuousSet]:
+        return TimeSlot(start_time=start_time, end_time=end_time, resources=resources)

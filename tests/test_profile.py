@@ -60,10 +60,10 @@ class TestResourceSets(unittest.TestCase):
 
 
 class TestProfileEntry(unittest.TestCase):
-    """ Basic tests for profile entries """
+    """Basic tests for profile entries"""
 
     def test_hash(self):
-        """ Tests the hashing """
+        """Tests the hashing"""
 
         resources = DiscreteSet([DiscreteRange(0, 10)])
         entry1 = ProfileEntry(time=0, resources=resources)
@@ -88,22 +88,22 @@ class TestDiscreteProfile(unittest.TestCase):
         """Test the profile's capacity"""
         self.assertEqual(self.profile.max_capacity, self.max_capacity)
         slot = self.profile.find_start_time(self.max_capacity, 0, 1)
-        self.assertEqual(slot.period.lower, 0)
-        self.assertEqual(slot.period.upper, 1)
+        self.assertEqual(slot.start_time, 0)
+        self.assertEqual(slot.end_time, 1)
         self.assertEqual(slot.resources.quantity, self.max_capacity)
 
     def test_find_start_time(self):
         """Tests finding the start time for a task"""
         slot = self.profile.find_start_time(quantity=5, ready_time=0, duration=10)
-        self.assertEqual(slot.period.lower, 0)
-        self.assertEqual(slot.period.upper, 10)
+        self.assertEqual(slot.start_time, 0)
+        self.assertEqual(slot.end_time, 10)
         self.assertEqual(
             slot.resources, DiscreteSet([DiscreteRange(0, self.max_capacity)])
         )
         self._allocate()
         slot = self.profile.find_start_time(quantity=5, ready_time=0, duration=10)
-        self.assertEqual(slot.period.lower, 5)
-        self.assertEqual(slot.period.upper, 15)
+        self.assertEqual(slot.start_time, 5)
+        self.assertEqual(slot.end_time, 15)
         self.assertIn(DiscreteRange(7, 10), slot.resources)
 
     def test_selecting_resources(self):
@@ -120,7 +120,7 @@ class TestDiscreteProfile(unittest.TestCase):
         self.assertEqual(resources.quantity, 5)
         self.assertRaises(ValueError, self.profile.select_slot_resources, slot, 15)
         slot = self.profile.find_start_time(quantity=10, ready_time=5, duration=2)
-        self.assertEqual(slot.period.lower, 10)
+        self.assertEqual(slot.start_time, 10)
         # Try selecting from None
         slot = self.profile.find_start_time(quantity=12, ready_time=5, duration=2)
         with self.assertRaises(ValueError):
@@ -140,12 +140,14 @@ class TestDiscreteProfile(unittest.TestCase):
         self._allocate()
         slots = self.profile.free_time_slots(start_time=0, end_time=20)
         self.assertEqual(len(slots), 4)
-        self.assertIn(DiscreteRange(0, 20), slots[0].period)
+        self.assertEqual(0, slots[0].start_time)
+        self.assertEqual(20, slots[0].end_time)
         self.assertIn(DiscreteRange(7, 10), slots[0].resources)
         self.assertIn(DiscreteRange(2, 7), slots[1].resources)
         self.assertIn(DiscreteRange(0, 2), slots[2].resources)
         self.assertIn(DiscreteRange(2, 7), slots[3].resources)
-        self.assertIn(DiscreteRange(10, 20), slots[3].period)
+        self.assertEqual(10, slots[3].start_time)
+        self.assertEqual(20, slots[3].end_time)
         slots = self.profile.free_time_slots(start_time=0, end_time=5)
         self.assertEqual(len(slots), 3)
 
@@ -163,10 +165,14 @@ class TestDiscreteProfile(unittest.TestCase):
             start_time=0, end_time=20, min_duration=2
         )
         self.assertEqual(len(slots), 4)
-        self.assertIn(DiscreteRange(0, 5), slots[0].period)
-        self.assertIn(DiscreteRange(0, 20), slots[1].period)
-        self.assertIn(DiscreteRange(5, 20), slots[2].period)
-        self.assertIn(DiscreteRange(10, 20), slots[3].period)
+        self.assertEqual(0, slots[0].start_time)
+        self.assertEqual(5, slots[0].end_time)
+        self.assertEqual(0, slots[1].start_time)
+        self.assertEqual(20, slots[1].end_time)
+        self.assertEqual(5, slots[2].start_time)
+        self.assertEqual(20, slots[2].end_time)
+        self.assertEqual(10, slots[3].start_time)
+        self.assertEqual(20, slots[3].end_time)
         self.assertIn(DiscreteRange(2, 10), slots[0].resources)
         self.assertIn(DiscreteRange(7, 10), slots[1].resources)
         self.assertIn(DiscreteRange(0, 2), slots[2].resources)
@@ -179,12 +185,15 @@ class TestDiscreteProfile(unittest.TestCase):
         self.assertEqual(len(self.profile), 2)
 
     def test_repr(self):
-        """ Tests string representation """
-        expected = "DiscreteProfile(max_capacity=10, avail=SortedKeyList(" \
-                   "[ProfileEntry(time=0, resources=DiscreteSet(" \
-                   "[DiscreteRange(0, 10)]), num_units=1)], " \
-                   "key=operator.attrgetter('time')))"
+        """Tests string representation"""
+        expected = (
+            "DiscreteProfile(max_capacity=10, avail=SortedKeyList("
+            "[ProfileEntry(time=0, resources=DiscreteSet("
+            "[DiscreteRange(0, 10)]), num_units=1)], "
+            "key=operator.attrgetter('time')))"
+        )
         self.assertEqual(repr(self.profile), expected)
+
 
 class TestContinuousProfile(unittest.TestCase):
     """Tests the continuous availability profile."""
@@ -200,8 +209,8 @@ class TestContinuousProfile(unittest.TestCase):
         """Test the profile's capacity"""
         self.assertEqual(self.profile.max_capacity, self.max_capacity)
         slot = self.profile.find_start_time(self.max_capacity, 0.0, 1.0)
-        self.assertEqual(slot.period.lower, 0.0)
-        self.assertEqual(slot.period.upper, 1.0)
+        self.assertEqual(slot.start_time, 0.0)
+        self.assertEqual(slot.end_time, 1.0)
         self.assertEqual(slot.resources.quantity, self.max_capacity)
 
     def _allocate(self) -> None:
@@ -214,15 +223,15 @@ class TestContinuousProfile(unittest.TestCase):
     def test_find_start_time(self):
         """Tests finding the start time for a task"""
         slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
-        self.assertEqual(slot.period.lower, 0.0)
-        self.assertEqual(slot.period.upper, 10.0)
+        self.assertEqual(slot.start_time, 0.0)
+        self.assertEqual(slot.end_time, 10.0)
         self.assertEqual(
             slot.resources, ContinuousSet([ContinuousRange(0.0, self.max_capacity)])
         )
         self._allocate()
         slot = self.profile.find_start_time(quantity=5.0, ready_time=0.0, duration=10.0)
-        self.assertEqual(slot.period.lower, 5.0)
-        self.assertEqual(slot.period.upper, 15.0)
+        self.assertEqual(slot.start_time, 5.0)
+        self.assertEqual(slot.end_time, 15.0)
         self.assertIn(ContinuousRange(7.0, 10.0), slot.resources)
 
     def test_selecting_resources(self):
@@ -248,12 +257,14 @@ class TestContinuousProfile(unittest.TestCase):
         self._allocate()
         slots = self.profile.free_time_slots(start_time=0.0, end_time=20.0)
         self.assertEqual(len(slots), 4)
-        self.assertIn(ContinuousRange(0.0, 20.0), slots[0].period)
+        self.assertEqual(0.0, slots[0].start_time)
+        self.assertEqual(20.0, slots[0].end_time)
         self.assertIn(ContinuousRange(7.0, 10.0), slots[0].resources)
         self.assertIn(ContinuousRange(2.0, 7.0), slots[1].resources)
         self.assertIn(ContinuousRange(0.0, 2.0), slots[2].resources)
         self.assertIn(ContinuousRange(2.0, 7.0), slots[3].resources)
-        self.assertIn(ContinuousRange(10.0, 20.0), slots[3].period)
+        self.assertEqual(10.0, slots[3].start_time)
+        self.assertEqual(20.0, slots[3].end_time)
 
     def test_allocate(self) -> None:
         """Test multiple allocations"""
@@ -269,10 +280,14 @@ class TestContinuousProfile(unittest.TestCase):
             start_time=0, end_time=20, min_duration=2
         )
         self.assertEqual(len(slots), 4)
-        self.assertIn(ContinuousRange(0, 5), slots[0].period)
-        self.assertIn(ContinuousRange(0, 20), slots[1].period)
-        self.assertIn(ContinuousRange(5, 20), slots[2].period)
-        self.assertIn(ContinuousRange(10, 20), slots[3].period)
+        self.assertEqual(0, slots[0].start_time)
+        self.assertEqual(5, slots[0].end_time)
+        self.assertEqual(0, slots[1].start_time)
+        self.assertEqual(20, slots[1].end_time)
+        self.assertEqual(5, slots[2].start_time)
+        self.assertEqual(20, slots[2].end_time)
+        self.assertEqual(10, slots[3].start_time)
+        self.assertEqual(20, slots[3].end_time)
         self.assertIn(ContinuousRange(2, 10), slots[0].resources)
         self.assertIn(ContinuousRange(7, 10), slots[1].resources)
         self.assertIn(ContinuousRange(0, 2), slots[2].resources)
@@ -286,7 +301,7 @@ class TestContinuousProfile(unittest.TestCase):
 
 
 class TestComparator(unittest.TestCase):
-    """ Tests the comparators """
+    """Tests the comparators"""
 
     def setUp(self) -> None:
         self.comp = IntFloatComparator()
@@ -295,7 +310,7 @@ class TestComparator(unittest.TestCase):
         del self.comp
 
     def test_comparisons(self):
-        """ Tests comparisons with the comparator """
+        """Tests comparisons with the comparator"""
         self.assertTrue(self.comp.value_lt(2, 5))
         self.assertFalse(self.comp.value_lt(2, 2))
         self.assertTrue(self.comp.value_le(2, 2))
