@@ -71,7 +71,8 @@ The returned `slot` will resemble:
 .. code-block:: python
 
     TimeSlot(
-        period=DiscreteRange(0, 50),
+        start_time=0,
+        end_time=50,
         resources=DiscreteSet([DiscreteRange(10, 100)])
     )
 
